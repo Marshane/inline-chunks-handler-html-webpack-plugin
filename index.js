@@ -6,7 +6,8 @@ function InlineChunkHandlerPlugin(options) {
 }
 
 InlineChunkHandlerPlugin.prototype.apply = function(compiler) {
-  var me = this
+  var me = this;
+  var source = '';
 
   compiler.plugin('compilation', function(compilation) {
 
@@ -34,19 +35,14 @@ InlineChunkHandlerPlugin.prototype.apply = function(compiler) {
         var splitUp = chunkName.split(separator);
         var name = splitUp[0];
         var ext = splitUp[1];
-        // console.log(compilation.chunks)
+
         var matchedChunk = _.filter(compilation.chunks, function(chunk) {
           return chunk.name === name
         })[0];
         var chunkPath = (ext && _.filter(matchedChunk.files, function(file) {
           return file.indexOf(ext) > -1
         }) || matchedChunk.files)[0];
-        // console.log(JSON.stringify(chunkPath))
-        // console.log('\n')
-        // console.log("inline-chunks-html-webpack-plugin: Inlined " + chunkPath);
-        // console.log('\n')
-        // console.log(htmlPluginData)
-        // console.log('\n')
+
         if (chunkPath) {
           var path = publicPath + chunkPath;
           var head = _.find(htmlPluginData.head, { attributes: { href: path } });
@@ -63,7 +59,10 @@ InlineChunkHandlerPlugin.prototype.apply = function(compiler) {
               delete tag.attributes.href;
               delete tag.attributes.rel;
             };
-            tag.innerHTML = sourceMappingURL.removeFrom(compilation.assets[chunkPath].source());
+            if (!source && compilation.assets[chunkPath]) {
+              source = compilation.assets[chunkPath].source();
+            }
+            tag.innerHTML = sourceMappingURL.removeFrom(source);
           }
           if (deleteFile) {
             delete compilation.assets[chunkPath]
