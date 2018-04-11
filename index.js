@@ -7,16 +7,16 @@ function InlineChunkHandlerPlugin(options) {
 
 InlineChunkHandlerPlugin.prototype.apply = function(compiler) {
   var me = this;
-  var source = '';
+  var source = [];
 
   compiler.plugin('compilation', function(compilation) {
 
     compilation.plugin('html-webpack-plugin-before-html-processing', function(htmlPluginData, callback) {
-    //   htmlPluginData.html += 'The magic footer';
+
       if(me.options.htmlProcessingCallback) {
           me.options.htmlProcessingCallback(htmlPluginData)
       }
-      console.log(htmlPluginData)
+
       callback(null, htmlPluginData);
     });
 
@@ -30,7 +30,7 @@ InlineChunkHandlerPlugin.prototype.apply = function(compiler) {
         publicPath += '/';
       }
 
-      _.each(inlineChunks, function(chunkName) {
+      _.each(inlineChunks, function(chunkName, index) {
         var separator = /\./;
         var splitUp = chunkName.split(separator);
         var name = splitUp[0];
@@ -48,7 +48,7 @@ InlineChunkHandlerPlugin.prototype.apply = function(compiler) {
           var head = _.find(htmlPluginData.head, { attributes: { href: path } });
           var body = _.find(htmlPluginData.body, { attributes: { src: path } });
           var tag = head || body;
-        //   console.log(JSON.stringify(tag))
+
           if (tag) {
             if (tag.tagName === 'script') {
               delete tag.attributes.src;
@@ -59,48 +59,16 @@ InlineChunkHandlerPlugin.prototype.apply = function(compiler) {
               delete tag.attributes.href;
               delete tag.attributes.rel;
             };
-            if (!source && compilation.assets[chunkPath]) {
-              source = compilation.assets[chunkPath].source();
+
+            if (!source[index] && compilation.assets[chunkPath]) {
+              source[index] = compilation.assets[chunkPath].source();
             }
-            tag.innerHTML = sourceMappingURL.removeFrom(source);
+            tag.innerHTML = sourceMappingURL.removeFrom(source[index]);
           }
           if (deleteFile) {
             delete compilation.assets[chunkPath]
           }
         }
-      });
-
-      _.each(deleteChunks, function(chunkName) {
-            var separator = /\./;
-            var splitUp = chunkName.split(separator);
-            var name = splitUp[0];
-            var ext = splitUp[1];
-
-            var matchedChunk = _.filter(compilation.chunks, function(chunk) {
-              return chunk.name === name
-            })[0];
-            var chunkPath = (ext && _.filter(matchedChunk.files, function(file) {
-              return file.indexOf(ext) > -1
-            }) || matchedChunk.files)
-
-            if(chunkPath.length) {
-                _.each(chunkPath, function(it) {
-                    var path = publicPath + it;
-                    _.each(htmlPluginData.head, function(head, index) {
-                        if (head.attributes.href === path) {
-                            console.log(head)
-                            // delete head
-                            htmlPluginData.head.splice(index, 1)
-                        }
-                    })
-                    _.each(htmlPluginData.body, function(body, index) {
-                        if (body.attributes.src === path) {
-                            htmlPluginData.body.splice(index, 1)
-                        }
-                    })
-                    me.options.deleteChunksCallback && me.options.deleteChunksCallback(compilation, it)
-                })
-            }
       });
 
       callback(null, htmlPluginData);
